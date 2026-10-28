@@ -1,4 +1,5 @@
-"""Merriam-Webster Collegiate API: authoritative, fail-closed validation.
+"""Merriam-Webster Collegiate API: optional definitions for the Latest Word panel.
+Word validity comes from word_list.py; this returns None when no key is set or MW fails.
 Configure MERRIAM_WEBSTER_API_KEY as a Render environment secret.
 """
 import asyncio
