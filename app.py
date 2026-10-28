@@ -12,6 +12,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from merriam_webster import lookup_word
+from word_list import is_valid_word
 
 app = FastAPI()
 ROOT = Path(__file__).resolve().parent
@@ -65,10 +66,8 @@ def new_room():
     return room
 
 
-async def valid_word(word):
-    if len(word) < 3 or not word.isascii() or not word.isalpha():
-        return None
-    return await lookup_word(word)
+def valid_word(word):
+    return len(word) >= 3 and word.isascii() and word.isalpha() and is_valid_word(word)
 
 
 def invalid_extension(old,new):
@@ -179,9 +178,10 @@ async def connect(ws: WebSocket):
                     if len(room.names)<2:
                         await error(ws,'Wait for a second player to join.');continue
                     word=str(data.get('word','')).strip().upper()
-                    result=await valid_word(word)
-                    if result is None:
-                        await error(ws,'Not an accepted Merriam-Webster English word. Names of people, places, brands and other proper names are not allowed (or dictionary unavailable).');continue
+                    if not valid_word(word):
+                        await error(ws,'Not an accepted English word. Names of people, places, brands and other proper names are not allowed.');continue
+                    # Definition is display-only; the word stays valid if MW is unavailable.
+                    result=await lookup_word(word) or {'definition':'Definition unavailable','partOfSpeech':None}
                     # Every claim searches ALL words, so no target click is needed.
                     # Prefer the largest extendable base word; ties favor a steal.
                     # If no extension is possible, try a new word from center letters.
