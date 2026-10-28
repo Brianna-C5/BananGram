@@ -1,0 +1,163 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Word Steal | Play with Friends</title><style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f4efe5;background:#121d25}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:auto;padding:24px 14px 60px}h1{font-size:clamp(30px,5vw,48px);margin:0 0 8px}p{color:#bfcbc8}.panel{border:1px solid #415458;background:#1d3038;border-radius:18px;padding:20px;margin-top:16px}.stack{display:flex;gap:10px;flex-wrap:wrap;align-items:center}input,button{font:inherit;border-radius:10px;padding:12px;border:1px solid #536b6d}input{background:#10232b;color:#fff;min-width:0}button{background:#bde69b;color:#13261c;font-weight:750;cursor:pointer}button.secondary{background:#324b55;color:white}button:disabled{opacity:.4;cursor:not-allowed}.hidden{display:none!important}.roomcode{letter-spacing:4px;font-size:28px;font-weight:800;color:#bde69b}.tiles{display:flex;flex-wrap:wrap;gap:7px;min-height:60px}.tile{display:flex;justify-content:center;align-items:center;background:#ead19a;color:#3b2819;border-radius:7px;width:39px;height:45px;font-size:22px;font-weight:800;box-shadow:0 3px #a68449}.word{border:2px solid #698188;border-radius:10px;padding:10px 14px;cursor:pointer;background:#152830;color:#f5f7ef;font-weight:800;font-size:18px}.word.selected{border-color:#fce08e;background:#364536}.words{display:flex;flex-wrap:wrap;gap:9px;min-height:50px}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.board{position:relative;width:100%;max-width:850px;aspect-ratio:1.2/1;margin-inline:auto;overflow:hidden;border-radius:22px;background:radial-gradient(ellipse at center,#315547 0%,#25453e 70%,#203a36 100%);border:2px solid #557468;box-shadow:inset 0 0 38px #10251d}.boardtile{position:absolute;width:6.6%;height:8.1%;padding:0;border-radius:5px;background:#e4c98f;color:#332719;box-shadow:0 2px #947341;font-size:clamp(11px,2vw,18px);border:1px solid #c39f65}.boardtile.back{background:#4f6871;color:#d4e7e2;border:1px solid #739099;box-shadow:0 2px #2c4148}.boardtile:disabled{opacity:1;cursor:default}.boardtile.back:disabled{opacity:.72}.boardtile:not(:disabled):hover{outline:2px solid #bde69b}.lobbyboard{pointer-events:none;opacity:.85}.roster{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.rosterchip{display:inline-flex;align-items:center;gap:7px;border:1px solid #648178;background:#203b3e;border-radius:999px;padding:7px 11px;font-size:14px;font-weight:700}.rosterchip.mine{border-color:#c2e3a2;background:#385044}.rosterchip.offline{opacity:.55}.rosterdot{width:8px;height:8px;background:#aad98a;border-radius:50%;display:inline-block}.rosterchip.offline .rosterdot{background:#a6a6a6}.playerpanel{min-height:90px}@media(max-width:650px){.roomcode{font-size:23px}.boardtile{font-size:clamp(8px,2.3vw,14px);border-radius:3px}}.muted{font-size:14px;color:#aebebd}.alert{padding:12px;background:#31494f;border-radius:8px;min-height:48px}.error{color:#ffd0b5}.tag{display:inline-block;background:#354d4d;padding:5px 9px;border-radius:7px;font-size:13px}.current{border-color:#c2e3a2}.hint{color:#e9d7ae}.grow{flex:1;min-width:190px}
+
+/* Compact desktop game: scattered board left, controls and player piles right. */
+main{max-width:1560px;padding:10px 16px 14px}header h1{font-size:25px;margin:0}header p{margin:1px 0 8px;font-size:12px}
+.panel{margin:0;padding:12px;border-radius:13px}h2{font-size:16px;margin:0 0 8px}h3{font-size:14px;margin:9px 0 4px}
+#game{display:flex;flex-direction:column;gap:8px}#game.hidden{display:none}
+.game-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.game-top .roomcode{font-size:20px}.game-top .roster{margin:0;gap:5px}.game-top .rosterchip{padding:3px 7px;font-size:12px}
+.game-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);gap:10px;min-height:0;height:calc(100dvh - 158px)}
+.board-side{display:flex;flex-direction:column;gap:6px;min-height:0}.board-side .board{flex:1;min-height:230px;max-width:none;aspect-ratio:auto}
+#board .boardtile{width:6.2%;height:8%;font-size:clamp(9px,1.6vw,17px)}
+#board .boardtile.used{display:none}.side{display:flex;flex-direction:column;gap:9px;min-height:0}
+.claim-box{flex-shrink:0}.claim-box input{width:100%}.claim-box form{display:flex;gap:7px}.claim-box button{flex-shrink:0}
+#players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;overflow-y:auto;min-height:0;align-content:start;padding-right:3px}
+.playerpanel{min-height:76px;padding:9px}.playerpanel h2{font-size:13px;margin-bottom:5px;overflow-wrap:anywhere}.word{padding:5px 7px;font-size:13px;cursor:default}
+.words{gap:4px;min-height:25px}.muted{font-size:12px}.tile{width:26px;height:30px;font-size:14px}.tiles{gap:3px;max-height:77px;overflow:auto}
+#message{padding:6px 9px;min-height:0;font-size:12px}#turntext{margin:4px 0}#rosterheading{display:none}
+#center{max-height:62px}#game .tag{font-size:11px}.board-side .panel-title{display:flex;align-items:center;justify-content:space-between;gap:6px}
+@media(max-width:760px){main{padding:9px}header p{font-size:11px}.game-body{display:flex;flex-direction:column;height:auto}.board-side .board{height:44vh;flex:none;min-height:270px}.side{min-height:460px}#players{max-height:50vh}.game-top{gap:6px}}
+/* Party-wide, nonblocking celebratory overlay for successful word actions. */
+#effect-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;pointer-events:none;background:rgba(8,19,18,.13)}
+#effect-overlay.hidden{display:none}
+#effect-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;filter:drop-shadow(0 7px 12px #0a191aaa);transform-origin:center;animation:banana-pop 1.7s ease-out both}
+#effect-image{width:min(440px,82vw);max-height:min(60vh,490px);height:auto;object-fit:contain;border-radius:18px;border:3px solid #ffdc76;box-shadow:0 12px 34px #07131999;animation:banana-wiggle .48s ease-in-out 2}
+#effect-desc{font-weight:800;font-size:clamp(14px,2.5vw,23px);color:white;background:#1f3a34ee;border-radius:14px;padding:7px 16px;text-align:center;max-width:85vw}
+@keyframes banana-pop{0%{opacity:0;transform:scale(.2) rotate(-20deg)}18%{opacity:1;transform:scale(1.22) rotate(5deg)}30%{transform:scale(1) rotate(0deg)}83%{opacity:1}100%{opacity:0;transform:scale(1.1) translateY(-28px)}}
+@keyframes banana-wiggle{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(11deg)}}
+@keyframes burst-scale{0%{opacity:0;transform:scale(.2)}23%{opacity:1;transform:scale(1.2)}80%{opacity:1}100%{opacity:0;transform:scale(1.4)}}
+@media(prefers-reduced-motion:reduce){#effect-card,#effect-image{animation:none}}
+
+/* Final result: celebratory full-room winner animation, accessible and closable. */
+#winner-overlay{position:fixed;inset:0;background:rgba(9,15,20,.9);z-index:10001;display:grid;place-items:center;padding:20px;overflow:auto}
+#winner-card{width:min(430px,95vw);text-align:center;color:#ffecad;background:#263039;border:3px solid #ffc84b;border-radius:25px;padding:18px;box-shadow:0 0 55px #ffc84b70;animation:winner-entrance .55s cubic-bezier(.2,1.5,.4,1) both,winner-flash 1.1s ease-in-out 3 alternate}
+.winner-heading{font-size:clamp(28px,5vw,44px);font-weight:1000;text-shadow:0 3px 0 #a95508;letter-spacing:1px}
+#winner-image{width:min(290px,70vw);max-height:42vh;object-fit:contain;border-radius:15px;margin:10px auto;display:block}
+#winner-names{color:#f9e083;font-size:clamp(25px,5vw,40px);font-weight:900;overflow-wrap:anywhere}
+#winner-score{margin:7px 0 12px;color:#e7ede4;font-weight:700}
+#winner-names{background:linear-gradient(135deg,#ffec20,#ff9717);color:#cf2800!important;border:4px solid #14100d;border-radius:16px;box-shadow:4px 5px 0 #14100d;text-shadow:2px 2px 0 #ffe067;padding:7px 15px;margin:8px auto;transform:rotate(-2deg);max-width:100%}
+#winner-image{width:min(390px,78vw)!important;max-height:52vh!important;object-fit:cover!important;object-position:top}
+#winner-card{width:min(490px,96vw);background:radial-gradient(circle at center,#ffdc3a 0%,#ef6027 58%,#7c2430 100%);border:5px solid #111;box-shadow:0 0 0 4px #fecd24,0 0 80px #ffb2008c;filter:drop-shadow(0 9px 12px #060808);padding:13px}
+.winner-heading{color:#fff6ad;text-shadow:3px 4px 0 #1b0807,-2px -2px 0 #1b0807!important}
+#winner-score{color:#fff;font-size:18px;text-shadow:1px 2px 2px #24100a}
+#winner-close{background:#ffdb6f;color:#2b2519}
+@keyframes winner-entrance{from{opacity:0;transform:scale(.55) rotate(-7deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes winner-flash{from{box-shadow:0 0 12px #ffc84b55;border-color:#ffc84b}to{box-shadow:0 0 65px #fff6b8;border-color:#fff}}
+@media(prefers-reduced-motion:reduce){#winner-card{animation:none}}
+
+/* BLUE + YELLOW THEME — centralized overrides; gameplay unaffected. */
+:root {color-scheme:dark;--blue-950:#07172f;--blue-900:#0c2448;--blue-800:#123866;--blue-700:#20508c;--blue-600:#2c69ac;--yellow-500:#ffd342;--yellow-300:#ffe58b;--text:#f4f8ff;--muted:#b6cbea;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);background:var(--blue-950)}
+body {background:radial-gradient(ellipse at 10% 0%,#194b85 0%,#0d2c56 37%,#07172f 100%);min-height:100dvh;color:var(--text)}
+header h1{color:var(--yellow-500);letter-spacing:.045em;text-shadow:0 3px 0 #001433,0 0 22px #f6c93e40}
+header p,p,.muted{color:var(--muted)}
+.panel{background:#102e55;border:1px solid #426da0;box-shadow:0 5px 20px #000c2540}
+h2,h3{color:#fff2b5}
+input{background:#071d3c;color:#fff;border:1px solid #6f97c7}
+input::placeholder{color:#a4b8d3}
+input:focus-visible,button:focus-visible{outline:3px solid var(--yellow-500);outline-offset:2px}
+button{background:linear-gradient(180deg,#ffe98f 0%,#ffd13a 100%);color:#08264c;border:1px solid #ffdf70;box-shadow:0 3px 0 #a67d13}
+button.secondary{background:#285c9b;color:#f7fbff;border:1px solid #5f8bc2;box-shadow:0 2px 0 #0b2b55}
+button:not(:disabled):hover{filter:brightness(1.08)}
+.roomcode{color:var(--yellow-500)}
+.alert{background:#214574;border:1px solid #507cab;color:#f5faff}
+.error{color:#ffbda9}
+.tag{background:#215185;color:#ffeb9f;border:1px solid #5685b6}
+.hint{color:var(--yellow-300)}
+.rosterchip{background:#174171;border:1px solid #5489bf;color:#f5f9ff}
+.rosterchip.mine{background:#294f79;border-color:#ffe16b;color:var(--yellow-300)}
+.rosterdot{background:#ffd43e;box-shadow:0 0 7px #ffd43e80}
+.rosterchip.offline .rosterdot{background:#8a9aad;box-shadow:none}
+.current{border-color:#ffd342;box-shadow:inset 0 0 0 1px #ffd34260}
+.board{background:radial-gradient(ellipse at 40% 40%,#1c61a4 0%,#16477c 58%,#0e315b 100%);border:2px solid #6193c6;box-shadow:inset 0 0 40px #061e4699,0 4px 18px #071b3c55}
+.boardtile{background:#ffe6a1;color:#2f2b18;border:1px solid #e8bc56;box-shadow:0 2px #b08834}
+.boardtile.back{background:#2c67a8;color:#ffedb5;border:1px solid #8bb2dc;box-shadow:0 2px #0e376c}
+.boardtile.back:disabled{opacity:.72}
+.boardtile:not(:disabled):hover{outline:2px solid #ffdd51}
+.tile{background:#ffe098;color:#352a0b;box-shadow:0 3px #c4983b}
+.word{background:#194575;border:2px solid #6994c3;color:#fff0b9}
+.word.selected{border-color:#ffe070;background:#285688}
+#message{color:#f4f8ff}
+#effect-overlay{background:rgba(4,19,45,.17)}
+#effect-desc{background:#123a70ee;color:#ffe781;border:1px solid #ffd04b}
+#effect-image{border-color:#ffdb62;box-shadow:0 12px 34px #061b3ca8}
+#winner-overlay{background:rgba(3,13,34,.90)}
+#winner-card{background:radial-gradient(circle at 50% 15%,#1e65ad 0%,#0f386f 58%,#071833 100%);border:5px solid #fbd44b;box-shadow:0 0 0 4px #174d8c,0 0 80px #ffd7516b;filter:drop-shadow(0 9px 12px #030f25);color:#fff2bc}
+.winner-heading{color:#ffe56b;text-shadow:3px 4px 0 #083264,-2px -2px 0 #083264!important}
+#winner-names{background:linear-gradient(135deg,#ffe98e,#ffcf31);color:#14376c!important;border:4px solid #092a58;box-shadow:4px 5px 0 #092a58;text-shadow:2px 2px 0 #fff1bb}
+#winner-score{color:#f9f7da;text-shadow:1px 2px 2px #051935}
+#winner-close{background:#ffdb6f;color:#08264c}
+@keyframes winner-flash{from{box-shadow:0 0 12px #ffdd5255;border-color:#fbd44b}to{box-shadow:0 0 65px #ffe99c;border-color:#fff6c7}}
+#latest-panel{margin:6px 0;padding:9px 12px;border-color:#6c9bcf;background:#0f3158}#latest-panel strong{color:#ffe27d;font-size:13px}#latest-content{margin-top:4px;font-size:13px;line-height:1.4;color:#f3f7ff}#mw-attribution{font-size:11px;color:#ffe27d;display:inline-block;margin-top:5px}
+</style></head><body><main><header><h1>WORD STEAL</h1><p>Flip letters. Race to claim words. Steal with new letters. Play together from separate devices.</p></header>
+<section id="lobby" class="panel"><h2>Play online</h2><div class="stack"><input id="name" placeholder="Your nickname" maxlength="20" value="Player"/><input id="code" placeholder="6-character room code" maxlength="6" style="text-transform:uppercase"/></div><div class="stack" style="margin-top:14px"><button id="create">Create a room</button><button class="secondary" id="join">Join / Rejoin with code</button></div><p class="muted">Returning player? Enter the same room code and the same nickname (case-insensitive) to reclaim your original seat, words, and score. A name already online cannot be taken over.</p><p id="lobbyerror" class="error"></p><h3>144 tiles — all face-down</h3><div id="lobbyboard" class="board lobbyboard" aria-label="Preview of all 144 face-down tiles"></div></section>
+<section id="game" class="hidden">
+ <section class="panel game-top"><div class="stack"><span class="muted">ROOM</span><strong class="roomcode" id="roomcode"></strong><button id="copy" class="secondary">Copy invite</button></div><div><span class="muted" id="who"></span><div id="roster" class="roster" aria-live="polite"></div><span id="rosterheading" class="hidden"></span></div></section>
+ <div id="message" class="alert"></div>
+ <section id="latest-panel" class="panel" aria-live="polite"><strong>Latest word · Merriam-Webster</strong><div id="latest-content">Waiting for the first word…</div><a id="mw-attribution" href="https://www.merriam-webster.com/" target="_blank" rel="noopener">Merriam-Webster Dictionary</a></section>
+ <div class="game-body">
+  <section class="panel board-side"><div class="panel-title"><h2>Scattered tiles <span class="tag"><span id="tilesleft">144</span> tiles left · <span id="remaining">144</span> face-down</span></h2><span class="muted" id="turntext"></span></div><div id="board" class="board" aria-label="Scattered tiles: choose a face-down tile"></div><div><h3>Available center letters</h3><div class="tiles" id="center"></div></div></section>
+  <aside class="side"><section class="panel claim-box"><h2>Claim, extend, or steal</h2><form id="claimform"><input id="word" placeholder="Type any word (3+ letters)" autocomplete="off" autocapitalize="characters"/><button id="claim" type="submit">CLAIM!</button></form><p class="muted">No need to select a word. The game searches every player's pile automatically. A successful claim gives you the next flip.</p><p class="error" id="actionerror"></p></section><section class="panel" style="min-height:0;display:flex;flex-direction:column;flex:1"><h2>Players' words</h2><div id="players" class="columns"></div></section></aside>
+ </div>
+</section>
+</main><div id="winner-overlay" class="hidden" role="alertdialog" aria-label="Game winner announcement" aria-modal="true"><div id="winner-card"><div class="winner-heading">👑 CHAMPION! 👑</div><img src="/static/winner.jpg" alt="Crowned yellow cartoon character celebrating" id="winner-image"/><div id="winner-names"></div><div id="winner-score"></div><button id="winner-close" type="button">Close</button></div></div><div id="effect-overlay" class="hidden" role="status" aria-live="polite" aria-atomic="true"><div id="effect-card"><img id="effect-image" src="/static/boom.jpg" alt="BOOM!" /><div id="effect-desc"></div></div></div><script>
+let ws=null,seat=null,state=null,lastEffectId=null,effectTimer=null,winnerShown=false;
+function showPartyEffect(effect){
+ const overlay=$('effect-overlay');
+ if(effectTimer)clearTimeout(effectTimer);
+ const steal=effect.kind==='steal';
+ overlay.className=steal?'steal':'';
+ const effectImage=$('effect-image');
+ effectImage.src=steal?'/static/steal.jpg':'/static/boom.jpg';
+ effectImage.alt=steal?'SUCK IT!':'BOOM!';
+ $('effect-desc').textContent=`${effect.player} ${steal?'stole':'made'} ${effect.word}!`;
+ // Restart pop animation for consecutive successful claims.
+ const card=$('effect-card');card.style.animation='none';void card.offsetWidth;card.style.animation='';
+ effectTimer=setTimeout(()=>{overlay.className='hidden';},1900);
+}
+
+const $=id=>document.getElementById(id);
+function showWinner(state){
+ if(effectTimer)clearTimeout(effectTimer);
+ $('effect-overlay').className='hidden';
+ const names=state.winners||[];
+ $('winner-names').textContent=names.length>1?`TIE! ${names.join(' & ')}`:(names[0]||'Winner!');
+ $('winner-score').textContent=`${state.winningScore??0} ${state.winningScore===1?"word":"words"} owned`;
+ $('winner-overlay').classList.remove('hidden');
+}
+$('winner-close').onclick=()=>$('winner-overlay').classList.add('hidden');
+
+// Stable, reproducible scatter: all players see the same tile in the same location.
+// Each tile gets one of 144 loose slots, with jitter and rotation for a pile effect.
+function seededRandom(seed){return function(){seed|=0;seed=(seed+0x6D2B79F5)|0;let x=Math.imul(seed^(seed>>>15),1|seed);x^=x+Math.imul(x^(x>>>7),61|x);return ((x^(x>>>14))>>>0)/4294967296;};}
+const rand=seededRandom(1442026);
+const slots=[];
+for(let row=0;row<12;row++)for(let col=0;col<12;col++){
+  slots.push({x:5.4+col*7.45+(row%2)*1.6+(rand()-.5)*5.4,
+              y:5.5+row*7.25+(rand()-.5)*5.4,
+              angle:(rand()-.5)*48});
+}
+for(let i=slots.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
+function placeTile(b,index){const p=slots[index];b.style.left=`${Math.max(0,Math.min(93.2,p.x))}%`;b.style.top=`${Math.max(0,Math.min(91.7,p.y))}%`;b.style.transform=`rotate(${p.angle}deg)`;b.style.zIndex=String(index+1);}
+function makeBack(i){const b=document.createElement("button");b.className="boardtile back";b.textContent="?";b.disabled=true;placeTile(b,i);return b;}
+for(let i=0;i<144;i++)$("lobbyboard").appendChild(makeBack(i));
+const queryCode=new URLSearchParams(location.search).get('room');if(queryCode)$('code').value=queryCode.toUpperCase();
+function showError(msg,where='actionerror'){$(where).textContent=msg;}
+function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else showError('Connection lost. Rejoin with your room code and original name.');}
+function start(action){$('lobbyerror').textContent='';if(ws)ws.close();const scheme=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${scheme}://${location.host}/ws`);ws.onopen=()=>send({action,name:$('name').value,code:$('code').value});ws.onmessage=e=>{let d=JSON.parse(e.data);if(d.type==='error'){showError(d.message,$('game').classList.contains('hidden')?'lobbyerror':'actionerror');return;}if(d.type==='welcome'){seat=d.seat;$('lobby').classList.add('hidden');$('game').classList.remove('hidden');$('roomcode').textContent=d.code;history.replaceState(null,'',`?room=${d.code}`);return;}if(d.type==='state'){state=d;render();if(lastEffectId===null){lastEffectId=d.effect?.id??0;}else if(d.effect&&d.effect.id!==lastEffectId){lastEffectId=d.effect.id;if(!d.finished)showPartyEffect(d.effect);}if(d.finished&&!winnerShown){winnerShown=true;showWinner(d);}}};ws.onerror=()=>showError('Could not connect to server.','lobbyerror');ws.onclose=()=>{if(!$('game').classList.contains('hidden'))showError('Disconnected. Reload the page and join with your original name and room code to recover your seat.');};}
+function render(){if(!state)return;$('remaining').textContent=state.remaining;$('tilesleft').textContent=state.tilesLeft??144;$('message').textContent=state.message;$('who').textContent=`You are ${state.players[seat]?.name||'Player'} (Player ${seat+1})`;
+$('rosterheading').textContent=`Players in this room (${state.players.length}/${state.maxPlayers||8})`;
+$('roster').replaceChildren();state.players.forEach((player,i)=>{
+ const chip=document.createElement('span');chip.className='rosterchip'+(i===seat?' mine':'')+(player.connected?'':' offline');
+ const dot=document.createElement('span');dot.className='rosterdot';chip.appendChild(dot);
+ const label=document.createElement('span');label.textContent=player.name+(i===seat?' (You)':'')+(player.connected?'':' — offline');chip.appendChild(label);
+ $('roster').appendChild(chip);
+});
+const latest=state.latestWord; $('latest-content').textContent=latest ? `${latest.word} (${latest.partOfSpeech}) — ${latest.definition} · Claimed by ${latest.player}` : 'Waiting for the first word…';
+$('turntext').textContent=state.finished?'🏆 Game over!':state.players.length<2?'Waiting for at least 2 players...':state.remaining===0?'All letters have been flipped. You can still claim words.':`${state.players[state.turn]?.name}'s turn to flip. Everyone can claim.`;
+$('board').replaceChildren();(state.board||Array(144).fill(null)).forEach((letter,index)=>{let b=document.createElement('button');b.className='boardtile'+(letter===null?' back':letter==='USED'?' used':'');b.textContent=letter===null?'?':letter==='USED'?'':letter;b.disabled=state.finished||letter!==null||state.players.length<2||state.turn!==seat;b.title=letter===null?`Tile ${index+1}`:`Tile ${index+1}: ${letter}`;placeTile(b,index);b.onclick=()=>send({action:'flip',index});$('board').appendChild(b);});
+$('word').disabled=!!state.finished;$('claim').disabled=!!state.finished;$('center').replaceChildren();for(let [c,n] of Object.entries(state.center).sort())for(let i=0;i<n;i++){let d=document.createElement('span');d.className='tile';d.textContent=c;$('center').appendChild(d);}
+$('players').replaceChildren();state.players.forEach((player,i)=>{let section=document.createElement('section');section.className='panel playerpanel'+(i===seat?' current':'');let heading=document.createElement('h2');heading.textContent=player.name+(i===seat?' (You)':'')+(player.connected?'':' (offline)');section.appendChild(heading);let words=document.createElement('div');words.className='words';for(let item of state.words.filter(w=>w.owner===i)){let b=document.createElement('span');b.className='word';b.textContent=item.word;words.appendChild(b);}section.appendChild(words);$('players').appendChild(section);});
+}
+$('create').onclick=()=>start('create');$('join').onclick=()=>start('join');$('claimform').onsubmit=e=>{e.preventDefault();let word=$('word').value.trim();if(!word)return showError('Enter a word first.');showError('');send({action:'claim',word});$('word').value='';};$('copy').onclick=async()=>{let url=new URL(location.href);url.searchParams.set('room',state.code);try{await navigator.clipboard.writeText(url.toString());$('copy').textContent='Copied!';setTimeout(()=>$('copy').textContent='Copy invite link',1800);}catch{showError('Copy this link: '+url.toString());}};
+</script></body></html>
