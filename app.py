@@ -12,7 +12,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from merriam_webster import lookup_word
-from word_list import is_valid_word
+from word_list import is_valid_word, words_from
 
 app = FastAPI()
 ROOT = Path(__file__).resolve().parent
@@ -21,6 +21,8 @@ app.mount('/static', StaticFiles(directory=ROOT/'static'), name='static')
 # Original Bananagrams 144-tile English distribution.
 TILE_COUNTS = {'A':13,'B':3,'C':3,'D':6,'E':18,'F':3,'G':4,'H':3,'I':12,'J':2,'K':2,'L':5,'M':3,'N':8,'O':11,'P':3,'Q':2,'R':9,'S':6,'T':9,'U':6,'V':3,'W':3,'X':2,'Y':3,'Z':2}
 assert sum(TILE_COUNTS.values()) == 144
+# Scrabble-style letter values; a word is worth the sum of its letters.
+LETTER_VALUES = {'A':1,'B':3,'C':3,'D':2,'E':1,'F':4,'G':2,'H':4,'I':1,'J':8,'K':5,'L':1,'M':3,'N':1,'O':1,'P':3,'Q':10,'R':1,'S':1,'T':1,'U':1,'V':4,'W':4,'X':8,'Y':4,'Z':10}
 ROOMS = {}
 MAX_PLAYERS = 8
 
@@ -43,6 +45,14 @@ class Room:
     winners: list = field(default_factory=list)
     winning_score: int = 0
     latest_word: Optional[dict] = None
+    started: bool = False
+
+    def host(self):
+        '''The first connected player may press Play, so an offline creator cannot stall the room.'''
+        return next((i for i, ws in enumerate(self.sockets) if ws is not None), 0)
+
+    def scores(self):
+        return [sum(e['points'] for e in self.words if e['owner']==i) for i in range(len(self.names))]
 
     def board_public(self):
         return ['USED' if idx in self.used else letter if idx in self.revealed else None for idx, letter in enumerate(self.bag)]
@@ -52,7 +62,8 @@ class Room:
         return {'type':'state','code':self.code,'remaining':len(self.bag)-len(self.revealed),'tilesLeft':active_tiles,'finished':self.finished,'center':dict(self.center),
                 'words':self.words,'board':[letter if letter is not None else None for letter in self.board_public()], 'maxPlayers':MAX_PLAYERS,'players':[{'name':n,'connected':self.sockets[i] is not None} for i,n in enumerate(self.names)],
                 'turn':self.turn,'message':self.message,'usedCount':len(self.used),
-                'effect':self.last_effect,'winners':self.winners,'winningScore':self.winning_score, 'latestWord':self.latest_word}
+                'effect':self.last_effect,'winners':self.winners,'winningScore':self.winning_score, 'latestWord':self.latest_word,
+                'started':self.started,'host':self.host(),'scores':self.scores(),'letterValues':LETTER_VALUES}
 
 
 def new_room():
@@ -79,6 +90,35 @@ def invalid_extension(old,new):
     if len(o)>2 and o[-1] not in 'aeiou' and n in {o+o[-1]+'ed',o+o[-1]+'ing'}: return True
     if n in {o+'en',o+'n'}: return True
     return False
+
+
+def word_points(word):
+    return sum(LETTER_VALUES[c] for c in word)
+
+
+def claim_possible(center, pile_words):
+    '''True if any legal claim remains: a new word from the center, or an extension/steal of a pile word.'''
+    if not center: return False  # Every claim consumes at least one center letter.
+    letters=''.join(center.elements())
+    if next(words_from(letters), None): return True
+    for old in set(pile_words):
+        need=Counter(old)
+        for word in words_from(letters+old, len(old)+1):
+            if not need-Counter(word) and not invalid_extension(old,word): return True
+    return False
+
+
+async def check_game_over(room):
+    '''Once every tile is face-up, end the game when no claim can be made with what is left.'''
+    if len(room.revealed) < len(room.bag): return
+    if await asyncio.to_thread(claim_possible, Counter(room.center), [e['word'] for e in room.words]): return
+    room.finished=True
+    scores=room.scores()
+    best=max(scores) if scores else 0
+    room.winners=[room.names[i] for i,score in enumerate(scores) if score==best]
+    room.winning_score=best
+    reason='All letters are off the board.' if not room.center else 'No more words can be made from the remaining letters.'
+    room.message=f'GAME OVER! {reason} Winner: {", ".join(room.winners)} ({best} points)!'
 
 async def broadcast(room):
     state=room.public()
@@ -146,14 +186,27 @@ async def connect(ws: WebSocket):
                         seat = len(room.names)
                         room.names.append(name)
                         room.sockets.append(ws)
-                        room.message = f'{name} joined! ' + (f'{len(room.names)} players ready. Start flipping!' if len(room.names)>=2 else 'Waiting for another player.')
+                        room.message = f'{name} joined! ' + ('' if room.started else f'{len(room.names)} players ready. {room.names[room.host()]} can press Play to start!' if len(room.names)>=2 else 'Waiting for another player.')
                         await ws.send_json({'type':'welcome','seat':seat,'code':room.code, 'rejoined': False})
                         await broadcast(room)
                 continue
             async with room.lock:
-                if room.finished and action in ('flip', 'claim'):
+                if room.finished and action in ('flip', 'claim', 'start'):
                     await error(ws, 'Game over! Create a new room to play again.'); continue
-                if action=='flip':
+                if not room.started and action in ('flip', 'claim'):
+                    await error(ws, f'Waiting for {room.names[room.host()]} to press Play.'); continue
+                if action=='start':
+                    if room.started:
+                        await error(ws,'The game has already started.');continue
+                    if len(room.names)<2:
+                        await error(ws,'Wait for a second player to join.');continue
+                    if seat != room.host():
+                        await error(ws,f'Only {room.names[room.host()]} can start the game.');continue
+                    room.started=True
+                    room.turn=seat
+                    room.message=f'{room.names[seat]} started the game and flips first!'
+                    await broadcast(room)
+                elif action=='flip':
                     if len(room.names)<2:
                         await error(ws,'Wait for a second player to join.');continue
                     if seat != room.turn:
@@ -173,6 +226,7 @@ async def connect(ws: WebSocket):
                         if room.sockets[room.turn] is not None: break
                         room.turn=(room.turn+1)%len(room.names)
                     room.message=f'{room.names[seat]} revealed {letter}. Everyone can race to claim words!'
+                    await check_game_over(room)
                     await broadcast(room)
                 elif action=='claim':
                     if len(room.names)<2:
@@ -223,22 +277,18 @@ async def connect(ws: WebSocket):
                              f'{room.names[seat]} stole {old} → {word} and earned the next flip!')
                     else:
                         msg=f'{room.names[seat]} claimed {word} and earned the next flip!'
+                    points=word_points(word)
                     room.seq+=1
-                    room.words.append({'id':room.seq,'word':word,'owner':seat})
+                    room.words.append({'id':room.seq,'word':word,'owner':seat,'points':points})
                     room.turn=seat  # Bonus flip, overriding the previous turn order.
-                    room.latest_word={'word':word,'definition':result['definition'],'partOfSpeech':result['partOfSpeech'],'player':room.names[seat]}
+                    room.latest_word={'word':word,'definition':result['definition'],'partOfSpeech':result['partOfSpeech'],'player':room.names[seat],'points':points}
                     room.last_effect={'id':room.seq,'kind':'steal' if is_steal else 'claim',
-                                      'player':room.names[seat],'word':word}
-                    if len(room.used) == len(room.bag):
-                        room.finished=True
-                        scores=[sum(1 for e in room.words if e['owner']==i) for i in range(len(room.names))]
-                        best=max(scores) if scores else 0
-                        winners=[room.names[i] for i,score in enumerate(scores) if score==best]
-                        room.winners=winners
-                        room.winning_score=best
-                        room.message=f'GAME OVER! No center tiles left. Winner: {", ".join(winners)} ({best} words)!'
-                    else:
-                        room.message=msg
+                                      'player':room.names[seat],'word':word,'points':points,
+                                      'oldWord':matching['word'] if matching else None,
+                                      'oldPoints':matching['points'] if matching else 0,
+                                      'victim':room.names[matching['owner']] if is_steal else None}
+                    room.message=f'{msg} (+{points} points)'
+                    await check_game_over(room)
                     await broadcast(room)
                 else:
                     await error(ws,'Unknown action.')
