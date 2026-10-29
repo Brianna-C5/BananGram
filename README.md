@@ -4,6 +4,9 @@
 - A blue-and-yellow **Latest Word** definition panel under the player-name header, synchronized to all devices.
 - Words are validated locally against the **ENABLE** word list (`enable1.txt`, public domain, ~173k words). No API key or network is needed to play.
 - ENABLE contains no proper nouns, so person names, place names, named products and brands are rejected. Common nouns (e.g. TABLE) remain legal.
+- The host sets the turn length (15s to 1:30) with a slider, then presses **Play** to start. If the turn player doesn't flip in time, a random tile is flipped for them.
+- Words score Scrabble letter values; a steal moves the word's points to the thief. Most points wins.
+- The game ends when no word can be made, extended or stolen from what's left, or when a majority of online players press **Vote to end** (available once every tile is face-up).
 - Definitions for the Latest Word panel come from the Merriam-Webster API when a key is configured; otherwise the panel shows "Definition unavailable".
 - Existing rules, 144 tiles, eight players, animations and most-words-wins scoring are preserved.
 
